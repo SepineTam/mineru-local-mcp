@@ -1,0 +1,19 @@
+[project]
+name = "mineru-local-mcp"
+version = "0.1.0"
+description = "User your local device to run mineru for LLMs."
+readme = "README.md"
+authors = [
+    { name = "SongTan", email = "sepinetam@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "mineru[all]>=2.7.1",
+]
+
+[project.scripts]
+mineru-local-mcp = "mineru_local_mcp:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
