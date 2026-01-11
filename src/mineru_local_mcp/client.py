@@ -8,21 +8,100 @@
 # @File   : client.py
 
 import os
+import shutil
 import zipfile
-
-import requests
 from pathlib import Path
 from typing import Dict
-import shutil
+
+import requests
+from mineru.cli.common import do_parse
+from mineru.utils.config_reader import get_device
+from mineru.utils.model_utils import get_vram
 
 
 class MineruLocalClient:
-    def __init__(self, save_to: Path = None):
+    def __init__(self,
+                 save_to: Path = None,
+                 *,
+                 backend: str = "vlm-auto-engine",
+                 vram: int = 12,
+                 source: str = "huggingface"):
+        """
+        Initialize MinerU local client
+
+        Args:
+            save_to: Directory to save processed results
+            backend: Parser backend (pipeline, vlm-auto-engine, hybrid-auto-engine, etc.)
+            vram: GPU memory limit in GB
+            source: Model source (huggingface, modelscope, local)
+        """
         self.save_to = save_to or Path.home() / "mineru-mcp-storage"
         self.save_to.mkdir(parents=True, exist_ok=True)
 
-    def process(self, file_path: str) -> Dict:
-        pass
+        self.backend = backend
+        self.vram = vram
+        self.source = source
+
+        # 设置环境变量
+        if os.getenv('MINERU_DEVICE_MODE', None) is None:
+            os.environ['MINERU_DEVICE_MODE'] = get_device()
+
+        if os.getenv('MINERU_VIRTUAL_VRAM_SIZE', None) is None:
+            os.environ['MINERU_VIRTUAL_VRAM_SIZE'] = str(self.vram)
+
+        if os.getenv('MINERU_MODEL_SOURCE', None) is None:
+            os.environ['MINERU_MODEL_SOURCE'] = self.source
+
+    def process(self,
+                file_path: str | Path,
+                lang: str = "ch") -> Dict:
+        """
+        Process a single file with MinerU
+
+        Args:
+            file_path: Path to the file (PDF)
+            lang: Language code for OCR (ch, en, etc.)
+
+        Returns:
+            Dict with processing result status
+        """
+        if not isinstance(file_path, Path):
+            file_path = Path(file_path)
+
+        if not file_path.exists():
+            return {
+                "success": False,
+                "error": f"File not found: {file_path}"
+            }
+
+        try:
+            # 读取文件字节数据
+            pdf_bytes = file_path.read_bytes()
+            file_name = file_path.stem
+
+            # 调用do_parse进行解析
+            do_parse(
+                output_dir=self.save_to.as_posix(),
+                pdf_file_names=[file_name],
+                pdf_bytes_list=[pdf_bytes],
+                p_lang_list=[lang],
+                backend=self.backend,
+                parse_method="auto",
+                formula_enable=True,
+                table_enable=True,
+            )
+
+            return {
+                "success": True,
+                "output_dir": str(self.save_to / file_name),
+                "message": f"Successfully processed {file_path.name}"
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 
 class MineruWebClient:
@@ -145,9 +224,3 @@ class MineruWebClient:
         except Exception as e:
             print(f"Error: {e}")
             return False
-
-
-if __name__ == "__main__":
-    client = MineruWebClient(save_to=Path.cwd() / "Results")
-    # client.create_task("https://reports.statamcp.com/202509/stata_mcp_a_research_report_on_ai_assisted_empirical_research.pdf")
-    client.save_result("c37497c6-7d7f-497a-98ac-9e642ed7843b")
