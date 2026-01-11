@@ -16,7 +16,6 @@ from typing import Dict
 import requests
 from mineru.cli.common import do_parse
 from mineru.utils.config_reader import get_device
-from mineru.utils.model_utils import get_vram
 
 
 class MineruLocalClient:
@@ -123,7 +122,7 @@ class MineruWebClient:
 
     def create_task(self,
                     file_path,
-                    data_id: str,
+                    data_id: str = None,
                     model_version: str = "vlm",
                     lang: str = "ch") -> Dict:
         """
@@ -141,6 +140,9 @@ class MineruWebClient:
         Notes:
             language options: https://www.paddleocr.ai/latest/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.html#_3
         """
+        if not data_id:
+            file_pure_name = file_path.split("/")[-1]
+            data_id = file_pure_name.split(".")[0]
         res = requests.post(
             self.base_url,
             headers=self.header,
